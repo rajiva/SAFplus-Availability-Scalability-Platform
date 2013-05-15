@@ -59,64 +59,6 @@ void clEventTerminate(SaInvocationT invocation, const SaNameT *compName)
     unblockNow = CL_TRUE;
 }
 
-void safAssignWork(SaInvocationT       invocation,const SaNameT       *compName,SaAmfHAStateT       haState,SaAmfCSIDescriptorT csiDescriptor)
-{
-    
-    switch ( haState )
-    {
-        
-        case SA_AMF_HA_ACTIVE:
-        {
-            
-            saAmfResponse(amfHandle, invocation, SA_AIS_OK);
-            break;
-        }
-
-        case SA_AMF_HA_STANDBY:
-        {
-            saAmfResponse(amfHandle, invocation, SA_AIS_OK);  
-            break;
-        }
-
-        case SA_AMF_HA_QUIESCED:
-        {
-            saAmfResponse(amfHandle, invocation, SA_AIS_OK);
-            break;
-        }
-
-        case SA_AMF_HA_QUIESCING:
-        {
-            
-            if (1)
-              {
-               saAmfCSIQuiescingComplete(amfHandle, invocation, SA_AIS_OK);
-              }
-            else
-              {
-              
-              saAmfResponse(amfHandle, invocation, SA_AIS_OK);
-
-              
-              }
-
-            break;
-        }
-
-        default:
-        {
-            assert(0);
-            break;
-        }
-    }
-
-    return;
-}
-
-
-void safRemoveWork(SaInvocationT  invocation,const SaNameT  *compName,const SaNameT  *csiName,SaAmfCSIFlagsT csiFlags)
-{
-   saAmfResponse(amfHandle, invocation, SA_AIS_OK);
-}
 
 
 /******************************************************************
@@ -127,7 +69,7 @@ void safRemoveWork(SaInvocationT  invocation,const SaNameT  *compName,const SaNa
  * Do the AMF client init/Register 
  */
 
-ClRcT clEvtCpmInit()
+ClRcT initializeAmf()
 {
    
     SaNameT             appName;      
@@ -143,8 +85,8 @@ ClRcT clEvtCpmInit()
     
     callbacks.saAmfHealthcheckCallback          = NULL; /* rarely necessary because SAFplus monitors the process */
     callbacks.saAmfComponentTerminateCallback   = clEventTerminate;
-    callbacks.saAmfCSISetCallback               = safAssignWork;
-    callbacks.saAmfCSIRemoveCallback            = safRemoveWork;
+    callbacks.saAmfCSISetCallback               = NULL;
+    callbacks.saAmfCSIRemoveCallback            = NULL;
     callbacks.saAmfProtectionGroupTrackCallback = NULL;
     callbacks.saAmfProxiedComponentInstantiateCallback = NULL;
     callbacks.saAmfProxiedComponentCleanupCallback = NULL;
@@ -180,6 +122,15 @@ ClRcT clEvtInitialize(int argc, char *argv[])
 {
 
     ClRcT rc = CL_OK;
+
+    rc = initializeAmf();
+    if (rc != CL_OK)
+    {
+        CL_DEBUG_PRINT(CL_DEBUG_CRITICAL,
+                       ("Event: Amf Initialization failed [0x%X]\n\r", rc));
+        CL_FUNC_EXIT();
+        return rc;
+    }
 
     CL_FUNC_ENTER();
 
@@ -263,14 +214,7 @@ ClRcT clEvtInitialize(int argc, char *argv[])
      * CPM should be notified that Event Service is ready only after the
      * the initialization is complete. This _MUST_ be the last step.
      */
-    rc = clEvtCpmInit();
-    if (rc != CL_OK)
-    {
-        CL_DEBUG_PRINT(CL_DEBUG_CRITICAL,
-                       ("Event: Amf Initialization failed [0x%X]\n\r", rc));
-        CL_FUNC_EXIT();
-        return rc;
-    }
+    
 
     CL_FUNC_EXIT();
     return CL_OK;
