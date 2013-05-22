@@ -27,6 +27,7 @@
  *          for EM - Non-EOnization & association with CPM, debug, etc.
  *****************************************************************************/
 #include <saAmf.h>
+#include <clSafUtils.h>
 #define __SERVER__
 #include "clCpmApi.h"
 #include "clTimerApi.h"
@@ -45,20 +46,8 @@ static SaAmfHandleT gClEvtAmfHandle;
 
 ClBoolT unblockNow = CL_FALSE;
 
-void clEventTerminate(SaInvocationT invocation, const SaNameT *compName)
-{
 
-   /* No need to check error messages b/c cannot do anything about the errors anyway... am shutting down */
-
-    saAmfComponentUnregister(gClEvtAmfHandle, compName, NULL);
-
-    saAmfFinalize(gClEvtAmfHandle);
-
-    saAmfResponse(gClEvtAmfHandle, invocation, SA_AIS_OK);
-
-    unblockNow = CL_TRUE;
-}
-
+void clEventTerminate(SaInvocationT invocation, const SaNameT *compName);
 
 
 /******************************************************************
@@ -98,6 +87,7 @@ ClRcT initializeAmf()
     {
         clLogWrite(CL_LOG_HANDLE_APP, CL_LOG_CRITICAL, NULL,
                    CL_LOG_MESSAGE_2_LIBRARY_INIT_FAILED, "CPM Library", rc);
+        return clSafToClovisError(rc);
     }
 
     rc = saAmfComponentNameGet(gClEvtAmfHandle, &appName);
@@ -118,7 +108,7 @@ ClRcT initializeAmf()
  * 5. Register with CPM for component failure notification. 
  * 6. Intialize the global variable to indicate EM is done. 
  */
-ClRcT clEvtInitialize(int argc, char *argv[])
+ClRcT clEvtInitialize(ClInt32T argc, ClCharT *argv[])
 {
 
     ClRcT rc = CL_OK;
@@ -217,6 +207,7 @@ ClRcT clEvtInitialize(int argc, char *argv[])
     
 
     CL_FUNC_EXIT();
+
     return CL_OK;
 }
 
@@ -247,6 +238,8 @@ ClRcT clEvtFinalize()
         CL_FUNC_EXIT();
         return rc;
     }
+    
+        
 
     rc = clEventDebugDeregister(gEvtHead.evtEOId);
     if (rc != CL_OK)
@@ -256,6 +249,8 @@ ClRcT clEvtFinalize()
         CL_FUNC_EXIT();
         return rc;
     }
+    
+    
 
     /*
      ** Handle Database Cleanup.
@@ -286,6 +281,30 @@ ClRcT clEvtFinalize()
 
     CL_FUNC_EXIT();
     return CL_OK;
+}
+
+
+
+
+
+
+void clEventTerminate(SaInvocationT invocation, const SaNameT *compName)
+{
+     
+    
+
+    clEvtFinalize();
+      
+   /* No need to check error messages b/c cannot do anything about the errors anyway... am shutting down */
+
+    saAmfComponentUnregister(gClEvtAmfHandle, compName, NULL);
+
+    
+
+
+    saAmfResponse(gClEvtAmfHandle, invocation, SA_AIS_OK);
+
+    unblockNow = CL_TRUE;
 }
 
 /*****************************************************************************/
@@ -348,7 +367,7 @@ int  errorExit(SaAisErrorT rc);
  *****************************************************************************/
 
 
-ClInt32T main(int argc, char *argv[])
+ClInt32T main(ClInt32T argc, ClCharT *argv[])
 {
     ClRcT rc = CL_OK;
 
@@ -368,9 +387,9 @@ ClInt32T main(int argc, char *argv[])
     
     /* Do the Event Service finalization here. */
     
-   rc = clEvtFinalize();
+   saAmfFinalize(gClEvtAmfHandle);
      
-   return (CL_OK != rc);
+   return 0;
 }
 
 
